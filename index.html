@@ -26,17 +26,28 @@
   main { padding:16px 18px; }
   .section-title { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft); margin:18px 0 10px; }
   .card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; margin-bottom:12px; }
-  .field { margin-bottom:10px; }
-  .field label { display:block; font-size:12px; color:var(--ink-soft); margin-bottom:4px; }
-  .field input, .field select { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:9px; font-size:14px; background:#FCFBF8; color:var(--ink); }
-  .row2 { display:flex; gap:10px; }
+  .field { margin-bottom:12px; position: relative; }
+  .field label { display:block; font-size:12px; color:var(--ink-soft); margin-bottom:6px; font-weight: 600; }
+  .field input, .field select { 
+    width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:9px; font-size:14px; background:#FCFBF8; color:var(--ink); 
+    appearance: none; -webkit-appearance: none; outline: none; transition: border-color 0.2s;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+  .field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235B6B6C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
+  .field input[type="date"]::-webkit-calendar-picker-indicator {
+    background: transparent; bottom: 0; color: transparent; cursor: pointer; height: auto; left: 0; position: absolute; right: 0; top: 0; width: auto;
+  }
+  .date-wrapper { position: relative; }
+  .date-wrapper i { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--ink-soft); pointer-events: none; font-size: 16px; }
+  .row2 { display:flex; gap:12px; }
   .row2 > div { flex:1; }
-  button.primary { width:100%; background:var(--accent); color:white; border:none; border-radius:10px; padding:13px 0; font-size:14px; font-weight:700; cursor:pointer; }
+  button.primary { width:100%; background:var(--accent); color:white; border:none; border-radius:10px; padding:13px 0; font-size:14px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; }
   button.primary:active { opacity:0.85; }
   button.ghost { width:100%; background:transparent; color:var(--accent); border:1px solid var(--accent); border-radius:10px; padding:11px 0; font-size:13px; font-weight:600; cursor:pointer; }
   .trip-route { display:flex; align-items:center; gap:8px; font-size:16px; font-weight:700; }
   .trip-route i { color:var(--ink-soft); font-size:16px; }
-  .trip-meta { font-size:12px; color:var(--ink-soft); margin-top:4px; }
+  .trip-meta { font-size:12px; color:var(--ink-soft); margin-top:4px; display:flex; align-items:center; gap:12px; }
+  .trip-meta span { display:inline-flex; align-items:center; gap:4px; }
   .badge { display:inline-block; font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; background:var(--accent-soft); color:var(--accent); text-transform:uppercase; letter-spacing:0.03em; }
   .badge.open { background:var(--warn-soft); color:var(--warn); }
   .badge.matched { background:var(--accent-soft); color:var(--accent); }
@@ -72,13 +83,14 @@
 <div id="app"></div>
 
 <script>
-// Настройки подключения к твоему живому бэкенду
 const API = "https://euroride-api.onrender.com/api";
+
+const CITIES = ["Tallinn", "Riga", "Vilnius", "Warsaw", "Berlin", "Prague", "Vienna", "Paris", "Rome", "Helsinki"];
 
 const I18N = {
   ru: {
     appName:"EuroRide", passenger:"Пассажир", driver:"Водитель", newTrip:"Новая поездка",
-    from:"Откуда", to:"Куда", date:"Дата", seats:"Мест", create:"Создать поездку",
+    from:"Откуда", to:"Куда", date:"Дата поездки", seats:"Количество мест", create:"Создать поездку",
     myTrips:"Мои поездки", openTrips:"Доступные поездки", noTrips:"Поездок пока нет",
     noOpenTrips:"Сейчас нет открытых заявок", offers:"Предложения",
     noOffers:"Откликов пока нет, водители скоро откликнутся", select:"Выбрать",
@@ -94,7 +106,7 @@ const I18N = {
   },
   en: {
     appName:"EuroRide", passenger:"Passenger", driver:"Driver", newTrip:"New trip",
-    from:"From", to:"To", date:"Date", seats:"Seats", create:"Create trip",
+    from:"From", to:"To", date:"Trip Date", seats:"Seats available", create:"Create trip",
     myTrips:"My trips", openTrips:"Open trip requests", noTrips:"No trips yet",
     noOpenTrips:"No open requests right now", offers:"Offers",
     noOffers:"No offers yet, drivers will respond soon", select:"Select",
@@ -130,7 +142,6 @@ function showToast(msg){ state.toastMsg = msg; render(); setTimeout(()=>{ state.
 function switchRole(role){ state.role = role; state.modal = null; loadTrips(); }
 function setLang(lang){ state.lang = lang; render(); }
 
-// Загрузка всех поездок с бэкенда Render
 async function loadTrips() {
   try {
     const res = await fetch(`${API}/trips`);
@@ -148,14 +159,21 @@ function myTrips(){
   return state.trips.filter(tr => tr.status === "open");
 }
 
-// Создание поездки через реальный API
 async function createTrip(e){
   e.preventDefault();
   const f = e.target;
+  
+  if (f.origin.value === f.destination.value) {
+    showToast(state.lang === "ru" ? "Города должны отличаться" : "Cities must be different");
+    return;
+  }
+
   const tripData = {
     passenger_id: user().id,
     origin: f.origin.value,
+    from: f.origin.value,
     destination: f.destination.value,
+    to: f.destination.value,
     date: f.date.value,
     seats: Number(f.seats.value) || 1
   };
@@ -167,7 +185,7 @@ async function createTrip(e){
       body: JSON.stringify(tripData)
     });
     if(res.ok) {
-      showToast(state.lang==="ru" ? "Поездка создана на сервере" : "Trip created on server");
+      showToast(state.lang==="ru" ? "Поездка создана" : "Trip created");
       f.reset();
       loadTrips();
     }
@@ -182,7 +200,6 @@ function openTrip(id){
 }
 function closeModal(){ state.modal = null; render(); }
 
-// Отправка отклика водителя через API
 async function sendOffer(e, tripId){
   e.preventDefault();
   const f = e.target;
@@ -194,7 +211,8 @@ async function sendOffer(e, tripId){
     driver_verified: d.verified,
     car_make: d.car_make,
     car_model: d.car_model,
-    price_cents: Math.round(Number(f.price.value) * 100)
+    price_cents: Math.round(Number(f.price.value) * 100),
+    price: Number(f.price.value)
   };
 
   try {
@@ -204,7 +222,7 @@ async function sendOffer(e, tripId){
       body: JSON.stringify(offerData)
     });
     if(res.ok) {
-      showToast(state.lang==="ru" ? "Отклик сохранен на сервере" : "Offer saved on server");
+      showToast(state.lang==="ru" ? "Отклик отправлен" : "Offer sent");
       state.modal = null;
       loadTrips();
     }
@@ -213,7 +231,6 @@ async function sendOffer(e, tripId){
   }
 }
 
-// Выбор предложения водителя (Холдирование средств в Stripe)
 async function selectOffer(tripId, offerId){
   try {
     const res = await fetch(`${API}/payments/hold`, {
@@ -223,7 +240,7 @@ async function selectOffer(tripId, offerId){
     });
     if(res.ok) {
       const data = await res.json();
-      showToast(`${t("paymentHeld")}: ${(data.amount / 100).toFixed(2)} €`);
+      showToast(`${t("paymentHeld")}: ${(data.amount / 100 || data.price || 0).toFixed(2)} €`);
       await loadTrips();
       state.modal = { type:"trip", tripId };
       render();
@@ -233,7 +250,6 @@ async function selectOffer(tripId, offerId){
   }
 }
 
-// Завершение поездки и списание денег
 async function completeTrip(tripId){
   try {
     const res = await fetch(`${API}/payments/capture/${tripId}`, { method: "POST" });
@@ -253,7 +269,6 @@ function openChat(tripId){
   render();
 }
 
-// Отправка сообщения в чат через API
 async function sendMessage(e, tripId){
   e.preventDefault();
   const f = e.target;
@@ -277,7 +292,6 @@ async function sendMessage(e, tripId){
   }
 }
 
-// Отправка отзыва
 async function submitReview(e, tripId){
   e.preventDefault();
   const f = e.target;
@@ -297,17 +311,28 @@ async function submitReview(e, tripId){
   }
 }
 
+function formatDate(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  return d.toLocaleDateString(state.lang === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'short' });
+}
+
 function statusBadge(status){ return `<span class="badge ${status}">${t("status_"+status)}</span>`; }
 function emptyState(icon, text){ return `<div class="empty"><i class="ti ${icon}"></i>${text}</div>`; }
 
 function tripCard(trip){
+  const fromCity = trip.origin || trip.from || "—";
+  const toCity = trip.destination || trip.to || "—";
   return `
     <div class="card" onclick="openTrip('${trip.id}')" style="cursor:pointer;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-        <div class="trip-route">${trip.origin} <i class="ti ti-arrow-right"></i> ${trip.destination}</div>
-        ${statusBadge(trip.status)}
+        <div class="trip-route">${fromCity} <i class="ti ti-arrow-right"></i> ${toCity}</div>
+        ${statusBadge(trip.status || "open")}
       </div>
-      <div class="trip-meta"><i class="ti ti-calendar" style="font-size:12px;vertical-align:-1px;"></i> ${trip.date} · ${trip.seats} ${state.lang==='ru'?'мест':'seats'}</div>
+      <div class="trip-meta">
+        <span><i class="ti ti-calendar"></i> ${formatDate(trip.date)}</span>
+        <span><i class="ti ti-users"></i> ${trip.seats || 1} ${state.lang==='ru'?'мест':'seats'}</span>
+      </div>
     </div>
   `;
 }
@@ -343,19 +368,45 @@ function render(){
 
 function renderHome(){
   const trips = myTrips();
+  const today = new Date().toISOString().split('T')[0];
+  
   if(state.role === "passenger"){
     return `
       <div class="section-title">${t("newTrip")}</div>
       <form class="card" onsubmit="createTrip(event)">
         <div class="row2">
-          <div class="field"><label>${t("from")}</label><input name="origin" placeholder="Tallinn" required /></div>
-          <div class="field"><label>${t("to")}</label><input name="destination" placeholder="Berlin" required /></div>
+          <div class="field">
+            <label>${t("from")}</label>
+            <select name="origin" required>
+              ${CITIES.map(c => `<option value="${c}">${c}</option>`).join("")}
+            </select>
+          </div>
+          <div class="field">
+            <label>${t("to")}</label>
+            <select name="destination" required>
+              ${CITIES.slice().reverse().map(c => `<option value="${c}">${c}</option>`).join("")}
+            </select>
+          </div>
         </div>
         <div class="row2">
-          <div class="field"><label>${t("date")}</label><input name="date" type="date" required /></div>
-          <div class="field"><label>${t("seats")}</label><input name="seats" type="number" min="1" max="8" value="1" /></div>
+          <div class="field">
+            <label>${t("date")}</label>
+            <div class="date-wrapper">
+              <input name="date" type="date" min="${today}" value="${today}" required />
+              <i class="ti ti-calendar-event"></i>
+            </div>
+          </div>
+          <div class="field">
+            <label>${t("seats")}</label>
+            <select name="seats">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
+          </div>
         </div>
-        <button class="primary" type="submit"><i class="ti ti-send-2"></i> ${t("create")}</button>
+        <button class="primary" type="submit"><i class="ti ti-plus"></i> ${t("create")}</button>
       </form>
       <div class="section-title">${t("myTrips")}</div>
       ${trips.length === 0 ? emptyState("ti-map-route", t("noTrips")) : trips.map(tripCard).join("")}
@@ -395,21 +446,23 @@ function renderTripModal(){
   const trip = state.trips.find(tr => tr.id === state.modal.tripId);
   if (!trip) return "";
   const isPassenger = state.role === "passenger";
-  const selected = trip.selected_offer_id ? trip.offers.find(o => o.id === trip.selected_offer_id) : null;
+  const fromCity = trip.origin || trip.from || "—";
+  const toCity = trip.destination || trip.to || "—";
+  const selected = trip.selected_offer_id ? (trip.offers && trip.offers.find(o => o.id === trip.selected_offer_id)) : null;
 
   let offersHtml;
   if(isPassenger){
     offersHtml = !trip.offers || trip.offers.length === 0 ? emptyState("ti-message-2", t("noOffers")) :
-      trip.offers.slice().sort((a,b)=>a.price_cents-b.price_cents).map(o => `
+      trip.offers.slice().sort((a,b)=>(a.price_cents || a.price * 100)-(b.price_cents || b.price * 100)).map(o => `
         <div class="offer-row">
-          <div class="avatar">${o.driver_name[0]}</div>
+          <div class="avatar">${o.driver_name ? o.driver_name[0] : "D"}</div>
           <div class="offer-info">
-            <div class="name">${o.driver_name} ${o.driver_verified ? `<i class="ti ti-rosette-discount-check-filled verified-tag"></i>` : ""}</div>
-            <div class="meta"><i class="ti ti-star-filled" style="font-size:10px;"></i> ${o.driver_rating} · ${o.car_make||""} ${o.car_model||""}</div>
+            <div class="name">${o.driver_name || "Водитель"} ${o.driver_verified ? `<i class="ti ti-rosette-discount-check-filled verified-tag"></i>` : ""}</div>
+            <div class="meta"><i class="ti ti-star-filled" style="font-size:10px;"></i> ${o.driver_rating || "5.0"} · ${o.car_make||""} ${o.car_model||""}</div>
           </div>
           <div style="text-align:right;">
-            <div class="offer-price">${(o.price_cents/100).toFixed(2)} €</div>
-            ${trip.status === "open"
+            <div class="offer-price">${((o.price_cents / 100) || o.price || 0).toFixed(2)} €</div>
+            ${(trip.status === "open" || !trip.status)
               ? `<button class="ghost" style="padding:5px 10px;width:auto;font-size:12px;margin-top:4px;" onclick="selectOffer('${trip.id}','${o.id}')">${t("select")}</button>`
               : (trip.selected_offer_id === o.id ? `<span class="badge matched">${t("status_matched")}</span>` : "")}
           </div>
@@ -426,8 +479,12 @@ function renderTripModal(){
     <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
       <div class="modal-sheet">
         <span class="close-x" onclick="closeModal()"><i class="ti ti-x"></i></span>
-        <h3>${trip.origin} <i class="ti ti-arrow-right" style="font-size:14px;"></i> ${trip.destination}</h3>
-        <div class="trip-meta" style="margin-bottom:10px;">${trip.date} · ${trip.seats} ${state.lang==='ru'?'мест':'seats'} ${statusBadge(trip.status)}</div>
+        <h3>${fromCity} <i class="ti ti-arrow-right" style="font-size:14px;"></i> ${toCity}</h3>
+        <div class="trip-meta" style="margin-bottom:10px;">
+          <span><i class="ti ti-calendar"></i> ${formatDate(trip.date)}</span>
+          <span><i class="ti ti-users"></i> ${trip.seats || 1} мест</span>
+          ${statusBadge(trip.status || "open")}
+        </div>
         ${selected ? `<div class="lock-note"><i class="ti ti-lock"></i> ${trip.status==='completed' ? t("paymentDone") : t("holdNote")}</div>` : ""}
         <div class="section-title" style="margin-top:6px;">${t("offers")}</div>
         ${offersHtml}
@@ -504,7 +561,6 @@ function renderReviewModal(){
   `;
 }
 
-// Запускаем автоматическое обновление данных каждые 4 секунды для симуляции реального времени
 loadTrips();
 setInterval(loadTrips, 4000);
 </script>
