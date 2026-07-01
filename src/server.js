@@ -5,7 +5,7 @@ import { db, now } from "./db.js";
 import { createHold, capturePaymentIntent, refundPaymentIntent, calculateSplit, isMockMode } from "./payments.js";
 
 const app = express();
-app.use(cors({ origin: '*' }));
+app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 4000;
