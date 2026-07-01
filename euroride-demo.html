@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-<title>EuroRide — демо</title>
+<title>EuroRide — Поиск транспорта</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css">
 <style>
   :root {
@@ -18,7 +18,7 @@
   .brand { display:flex; align-items:center; justify-content:space-between; }
   .brand-name { font-size:19px; font-weight:700; letter-spacing:-0.3px; display:flex; align-items:center; gap:8px; }
   .brand-name i { color:var(--accent); font-size:22px; }
-  .demo-tag { font-size:11px; color:var(--ink-soft); background:var(--surface); border:1px solid var(--line); padding:3px 8px; border-radius:999px; }
+  .demo-tag { font-size:11px; color:white; background:var(--accent); border:1px solid var(--accent); padding:3px 8px; border-radius:999px; font-weight: bold; }
   select.lang { border:1px solid var(--line); background:var(--surface); border-radius:8px; padding:6px 8px; font-size:13px; color:var(--ink-soft); }
   .role-switch { display:flex; gap:6px; margin-top:14px; background:var(--surface); border-radius:10px; padding:4px; border:1px solid var(--line); }
   .role-switch button { flex:1; border:none; background:transparent; padding:9px 0; border-radius:7px; font-size:13px; font-weight:600; color:var(--ink-soft); cursor:pointer; }
@@ -64,15 +64,16 @@
   .chat-bubble.them { background:var(--surface); border:1px solid var(--line); border-bottom-left-radius:3px; }
   .toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:var(--ink); color:white; padding:10px 16px; border-radius:10px; font-size:13px; z-index:30; max-width:360px; text-align:center; }
   .lock-note { display:flex; gap:8px; background:var(--warn-soft); color:var(--warn); border-radius:9px; padding:9px 11px; font-size:12px; margin:10px 0; }
-  .banner { background:var(--accent-soft); color:var(--accent); font-size:11px; text-align:center; padding:6px; }
+  .banner { background:var(--accent); color:white; font-size:12px; text-align:center; padding:8px; font-weight: 600; }
 </style>
 </head>
 <body>
-<div class="banner"><i class="ti ti-info-circle" style="vertical-align:-2px;"></i> Демо-версия — данные хранятся только в этой вкладке и сбрасываются при перезагрузке</div>
+<div class="banner"><i class="ti ti-cloud-lock" style="vertical-align:-2px;"></i> Приложение подключено к реальному серверу Render</div>
 <div id="app"></div>
 
 <script>
-// ---------- Данные хранятся только в памяти браузера (без сервера) ----------
+// Настройки подключения к твоему живому бэкенду
+const API = "https://euroride-api.onrender.com/api";
 
 const I18N = {
   ru: {
@@ -86,7 +87,7 @@ const I18N = {
     completeTrip:"Завершить и оплатить", leaveReview:"Оставить отзыв", rating:"Оценка",
     comment:"Комментарий", submitReview:"Отправить отзыв", status_open:"Открыта",
     status_matched:"Выбран водитель", status_completed:"Завершена", verified:"Проверен",
-    rides:"поездок", holdNote:"Сумма блокируется на карте и спишется после завершения поездки",
+    rides:"поездок", holdNote:"Сумма блокируется на карте через Stripe и спишется после поездки",
     paymentHeld:"Оплата заблокирована", paymentDone:"Оплата списана",
     tabHome:"Главная", tabProfile:"Профиль", profileTitle:"Профиль",
     feeNote:"Сервисный сбор платформы 12% уже учтён в расчёте водителя",
@@ -102,15 +103,12 @@ const I18N = {
     completeTrip:"Complete and pay", leaveReview:"Leave a review", rating:"Rating",
     comment:"Comment", submitReview:"Submit review", status_open:"Open",
     status_matched:"Driver selected", status_completed:"Completed", verified:"Verified",
-    rides:"rides", holdNote:"The amount is held on the card and captured after the trip is completed",
+    rides:"rides", holdNote:"The amount is held on the card via Stripe and captured after the trip",
     paymentHeld:"Payment held", paymentDone:"Payment captured",
     tabHome:"Home", tabProfile:"Profile", profileTitle:"Profile",
     feeNote:"12% platform fee is already factored into the driver's payout",
   },
 };
-
-let uid = 0;
-function nid(prefix) { return prefix + (++uid) + "_" + Math.random().toString(36).slice(2,7); }
 
 let state = {
   lang: "ru",
@@ -122,40 +120,60 @@ let state = {
     passenger: { id:"pass1", name:"Anna", role:"passenger", rating:5, rides_count:2, verified:false },
     driver: { id:"drv1", name:"Jonas", role:"driver", rating:4.9, rides_count:312, verified:true, car_make:"Volkswagen", car_model:"Passat" },
   },
-  trips: [
-    { id:"trip1", passenger_id:"pass1", origin:"Tallinn", destination:"Berlin", date:"2026-07-10", seats:2,
-      status:"open", selected_offer_id:null,
-      offers: [
-        { id:"off1", trip_id:"trip1", driver_id:"drv1", driver_name:"Jonas", driver_rating:4.9, driver_verified:true, car_make:"Volkswagen", car_model:"Passat", price_cents:3800, status:"pending" },
-        { id:"off2", trip_id:"trip1", driver_id:"drv2", driver_name:"Marek", driver_rating:4.7, driver_verified:true, car_make:"Skoda", car_model:"Octavia", price_cents:3400, status:"pending" },
-      ],
-      messages: [],
-    },
-  ],
+  trips: [],
 };
 
 function t(key){ return I18N[state.lang][key] || key; }
 function user(){ return state.users[state.role]; }
 
 function showToast(msg){ state.toastMsg = msg; render(); setTimeout(()=>{ state.toastMsg=null; render(); }, 2200); }
-
-function switchRole(role){ state.role = role; state.modal = null; render(); }
+function switchRole(role){ state.role = role; state.modal = null; loadTrips(); }
 function setLang(lang){ state.lang = lang; render(); }
+
+// Загрузка всех поездок с бэкенда Render
+async function loadTrips() {
+  try {
+    const res = await fetch(`${API}/trips`);
+    if(res.ok) {
+      state.trips = await res.json();
+      render();
+    }
+  } catch(err) {
+    console.error("Ошибка сети при получении поездок:", err);
+  }
+}
 
 function myTrips(){
   if(state.role === "passenger") return state.trips.filter(tr => tr.passenger_id === user().id);
   return state.trips.filter(tr => tr.status === "open");
 }
 
-function createTrip(e){
+// Создание поездки через реальный API
+async function createTrip(e){
   e.preventDefault();
   const f = e.target;
-  state.trips.unshift({
-    id: nid("trip"), passenger_id: user().id, origin:f.origin.value, destination:f.destination.value,
-    date:f.date.value, seats:Number(f.seats.value)||1, status:"open", selected_offer_id:null, offers:[], messages:[],
-  });
-  showToast(state.lang==="ru" ? "Поездка создана" : "Trip created");
-  render();
+  const tripData = {
+    passenger_id: user().id,
+    origin: f.origin.value,
+    destination: f.destination.value,
+    date: f.date.value,
+    seats: Number(f.seats.value) || 1
+  };
+
+  try {
+    const res = await fetch(`${API}/trips`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(tripData)
+    });
+    if(res.ok) {
+      showToast(state.lang==="ru" ? "Поездка создана на сервере" : "Trip created on server");
+      f.reset();
+      loadTrips();
+    }
+  } catch(err) {
+    showToast("Ошибка бэкенда");
+  }
 }
 
 function openTrip(id){
@@ -164,39 +182,70 @@ function openTrip(id){
 }
 function closeModal(){ state.modal = null; render(); }
 
-function sendOffer(e, tripId){
+// Отправка отклика водителя через API
+async function sendOffer(e, tripId){
   e.preventDefault();
   const f = e.target;
-  const trip = state.trips.find(tr => tr.id === tripId);
   const d = user();
-  trip.offers.push({
-    id: nid("off"), trip_id:tripId, driver_id:d.id, driver_name:d.name, driver_rating:d.rating,
-    driver_verified:d.verified, car_make:d.car_make, car_model:d.car_model,
-    price_cents: Math.round(Number(f.price.value)*100), status:"pending",
-  });
-  showToast(state.lang==="ru" ? "Отклик отправлен" : "Offer sent");
-  state.modal = null;
-  render();
+  const offerData = {
+    driver_id: d.id,
+    driver_name: d.name,
+    driver_rating: d.rating,
+    driver_verified: d.verified,
+    car_make: d.car_make,
+    car_model: d.car_model,
+    price_cents: Math.round(Number(f.price.value) * 100)
+  };
+
+  try {
+    const res = await fetch(`${API}/trips/${tripId}/offers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(offerData)
+    });
+    if(res.ok) {
+      showToast(state.lang==="ru" ? "Отклик сохранен на сервере" : "Offer saved on server");
+      state.modal = null;
+      loadTrips();
+    }
+  } catch(err) {
+    showToast("Ошибка отправки отклика");
+  }
 }
 
-function selectOffer(tripId, offerId){
-  const trip = state.trips.find(tr => tr.id === tripId);
-  const offer = trip.offers.find(o => o.id === offerId);
-  trip.status = "matched";
-  trip.selected_offer_id = offerId;
-  offer.status = "accepted";
-  trip.offers.forEach(o => { if(o.id !== offerId) o.status = "rejected"; });
-  showToast(t("paymentHeld") + ": " + (offer.price_cents/100).toFixed(2) + " €");
-  state.modal = { type:"trip", tripId };
-  render();
+// Выбор предложения водителя (Холдирование средств в Stripe)
+async function selectOffer(tripId, offerId){
+  try {
+    const res = await fetch(`${API}/payments/hold`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trip_id: tripId, offer_id: offerId })
+    });
+    if(res.ok) {
+      const data = await res.json();
+      showToast(`${t("paymentHeld")}: ${(data.amount / 100).toFixed(2)} €`);
+      await loadTrips();
+      state.modal = { type:"trip", tripId };
+      render();
+    }
+  } catch(err) {
+    showToast("Ошибка обработки платежа Stripe");
+  }
 }
 
-function completeTrip(tripId){
-  const trip = state.trips.find(tr => tr.id === tripId);
-  trip.status = "completed";
-  showToast(t("paymentDone"));
-  state.modal = { type:"trip", tripId };
-  render();
+// Завершение поездки и списание денег
+async function completeTrip(tripId){
+  try {
+    const res = await fetch(`${API}/payments/capture/${tripId}`, { method: "POST" });
+    if(res.ok) {
+      showToast(t("paymentDone"));
+      await loadTrips();
+      state.modal = { type:"trip", tripId };
+      render();
+    }
+  } catch(err) {
+    showToast("Ошибка списания средств");
+  }
 }
 
 function openChat(tripId){
@@ -204,23 +253,48 @@ function openChat(tripId){
   render();
 }
 
-function sendMessage(e, tripId){
+// Отправка сообщения в чат через API
+async function sendMessage(e, tripId){
   e.preventDefault();
   const f = e.target;
   const body = f.body.value.trim();
   if(!body) return;
-  const trip = state.trips.find(tr => tr.id === tripId);
-  trip.messages.push({ sender_id: user().id, body });
-  f.body.value = "";
-  state.modal.messages = trip.messages;
-  render();
+
+  try {
+    const res = await fetch(`${API}/trips/${tripId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sender_id: user().id, body })
+    });
+    if(res.ok) {
+      f.body.value = "";
+      await loadTrips();
+      state.modal = { type:"chat", tripId };
+      render();
+    }
+  } catch(err) {
+    showToast("Не удалось отправить сообщение");
+  }
 }
 
-function submitReview(e, tripId){
+// Отправка отзыва
+async function submitReview(e, tripId){
   e.preventDefault();
-  showToast(state.lang==="ru" ? "Спасибо за отзыв!" : "Thanks for the review!");
-  state.modal = null;
-  render();
+  const f = e.target;
+  try {
+    const res = await fetch(`${API}/trips/${tripId}/review`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rating: Number(f.rating.value), comment: f.comment.value })
+    });
+    if(res.ok) {
+      showToast(state.lang==="ru" ? "Спасибо за отзыв!" : "Thanks for the review!");
+      state.modal = null;
+      loadTrips();
+    }
+  } catch(err) {
+    showToast("Ошибка отправки отзыва");
+  }
 }
 
 function statusBadge(status){ return `<span class="badge ${status}">${t("status_"+status)}</span>`; }
@@ -245,7 +319,7 @@ function render(){
       <div class="brand">
         <div class="brand-name"><i class="ti ti-route-2"></i> ${t("appName")}</div>
         <div style="display:flex;align-items:center;gap:8px;">
-          <span class="demo-tag">DEMO</span>
+          <span class="demo-tag">LIVE API</span>
           <select class="lang" onchange="setLang(this.value)">
             <option value="ru" ${state.lang==="ru"?"selected":""}>RU</option>
             <option value="en" ${state.lang==="en"?"selected":""}>EN</option>
@@ -319,12 +393,13 @@ function renderModal(){
 
 function renderTripModal(){
   const trip = state.trips.find(tr => tr.id === state.modal.tripId);
+  if (!trip) return "";
   const isPassenger = state.role === "passenger";
   const selected = trip.selected_offer_id ? trip.offers.find(o => o.id === trip.selected_offer_id) : null;
 
   let offersHtml;
   if(isPassenger){
-    offersHtml = trip.offers.length === 0 ? emptyState("ti-message-2", t("noOffers")) :
+    offersHtml = !trip.offers || trip.offers.length === 0 ? emptyState("ti-message-2", t("noOffers")) :
       trip.offers.slice().sort((a,b)=>a.price_cents-b.price_cents).map(o => `
         <div class="offer-row">
           <div class="avatar">${o.driver_name[0]}</div>
@@ -336,12 +411,15 @@ function renderTripModal(){
             <div class="offer-price">${(o.price_cents/100).toFixed(2)} €</div>
             ${trip.status === "open"
               ? `<button class="ghost" style="padding:5px 10px;width:auto;font-size:12px;margin-top:4px;" onclick="selectOffer('${trip.id}','${o.id}')">${t("select")}</button>`
-              : (o.status === "accepted" ? `<span class="badge matched">${t("status_matched")}</span>` : "")}
+              : (trip.selected_offer_id === o.id ? `<span class="badge matched">${t("status_matched")}</span>` : "")}
           </div>
         </div>
       `).join("");
   } else {
-    offersHtml = `<button class="primary" onclick='state.modal={type:"offerForm", tripId:"${trip.id}"};render()'><i class="ti ti-currency-euro"></i> ${t("sendOffer")}</button>`;
+    const alreadyOffered = trip.offers && trip.offers.some(o => o.driver_id === user().id);
+    offersHtml = alreadyOffered 
+      ? `<div style="text-align:center; color:var(--ink-soft); font-size:13px; padding:10px;">Вы уже отправили предложение на эту поездку</div>`
+      : `<button class="primary" onclick='state.modal={type:"offerForm", tripId:"${trip.id}"};render()'><i class="ti ti-currency-euro"></i> ${t("sendOffer")}</button>`;
   }
 
   return `
@@ -388,12 +466,12 @@ function renderChatModal(){
       <div class="modal-sheet">
         <span class="close-x" onclick="closeModal()"><i class="ti ti-x"></i></span>
         <h3>${t("chat")}</h3>
-        <div style="margin-bottom:12px;max-height:300px;overflow-y:auto;">
-          ${trip.messages.length === 0 ? emptyState("ti-message-2", "...") :
+        <div style="margin-bottom:12px;max-height:300px;overflow-y:auto;padding:5px;">
+          ${!trip.messages || trip.messages.length === 0 ? emptyState("ti-message-2", "Начните диалог...") :
             trip.messages.map(msg => `<div class="chat-bubble ${msg.sender_id===user().id?'me':'them'}">${msg.body}</div>`).join("")}
         </div>
         <form onsubmit="sendMessage(event, '${trip.id}')" style="display:flex;gap:8px;">
-          <input name="body" placeholder="${t("typeMessage")}" style="flex:1;padding:10px;border-radius:9px;border:1px solid var(--line);" />
+          <input name="body" placeholder="${t("typeMessage")}" required style="flex:1;padding:10px;border-radius:9px;border:1px solid var(--line);" />
           <button class="primary" type="submit" style="width:auto;padding:0 16px;">${t("send")}</button>
         </form>
       </div>
@@ -418,7 +496,7 @@ function renderReviewModal(){
               <option value="1">1 ★</option>
             </select>
           </div>
-          <div class="field"><label>${t("comment")}</label><input name="comment" /></div>
+          <div class="field"><label>${t("comment")}</label><input name="comment" required /></div>
           <button class="primary" type="submit">${t("submitReview")}</button>
         </form>
       </div>
@@ -426,7 +504,9 @@ function renderReviewModal(){
   `;
 }
 
-render();
+// Запускаем автоматическое обновление данных каждые 4 секунды для симуляции реального времени
+loadTrips();
+setInterval(loadTrips, 4000);
 </script>
 </body>
 </html>
