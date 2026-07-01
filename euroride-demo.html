@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>EuroRide — демо</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css">
+<style>
+  :root {
+    --bg: #F6F4EF; --surface: #FFFFFF; --ink: #1C2B2D; --ink-soft: #5B6B6C;
+    --line: #E4E0D6; --accent: #2B5F5A; --accent-soft: #DCE9E6;
+    --warn: #B5732E; --warn-soft: #F4E6D5; --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  #app { max-width:420px; margin:0 auto; min-height:100vh; background:var(--bg); padding-bottom:30px; position:relative; }
+  header.topbar { position:sticky; top:0; z-index:5; background:var(--bg); padding:18px 18px 10px; border-bottom:1px solid var(--line); }
+  .brand { display:flex; align-items:center; justify-content:space-between; }
+  .brand-name { font-size:19px; font-weight:700; letter-spacing:-0.3px; display:flex; align-items:center; gap:8px; }
+  .brand-name i { color:var(--accent); font-size:22px; }
+  .demo-tag { font-size:11px; color:var(--ink-soft); background:var(--surface); border:1px solid var(--line); padding:3px 8px; border-radius:999px; }
+  select.lang { border:1px solid var(--line); background:var(--surface); border-radius:8px; padding:6px 8px; font-size:13px; color:var(--ink-soft); }
+  .role-switch { display:flex; gap:6px; margin-top:14px; background:var(--surface); border-radius:10px; padding:4px; border:1px solid var(--line); }
+  .role-switch button { flex:1; border:none; background:transparent; padding:9px 0; border-radius:7px; font-size:13px; font-weight:600; color:var(--ink-soft); cursor:pointer; }
+  .role-switch button.active { background:var(--accent); color:white; }
+  main { padding:16px 18px; }
+  .section-title { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft); margin:18px 0 10px; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; margin-bottom:12px; }
+  .field { margin-bottom:10px; }
+  .field label { display:block; font-size:12px; color:var(--ink-soft); margin-bottom:4px; }
+  .field input, .field select { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:9px; font-size:14px; background:#FCFBF8; color:var(--ink); }
+  .row2 { display:flex; gap:10px; }
+  .row2 > div { flex:1; }
+  button.primary { width:100%; background:var(--accent); color:white; border:none; border-radius:10px; padding:13px 0; font-size:14px; font-weight:700; cursor:pointer; }
+  button.primary:active { opacity:0.85; }
+  button.ghost { width:100%; background:transparent; color:var(--accent); border:1px solid var(--accent); border-radius:10px; padding:11px 0; font-size:13px; font-weight:600; cursor:pointer; }
+  .trip-route { display:flex; align-items:center; gap:8px; font-size:16px; font-weight:700; }
+  .trip-route i { color:var(--ink-soft); font-size:16px; }
+  .trip-meta { font-size:12px; color:var(--ink-soft); margin-top:4px; }
+  .badge { display:inline-block; font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; background:var(--accent-soft); color:var(--accent); text-transform:uppercase; letter-spacing:0.03em; }
+  .badge.open { background:var(--warn-soft); color:var(--warn); }
+  .badge.matched { background:var(--accent-soft); color:var(--accent); }
+  .badge.completed { background:#E3EEE0; color:#3E6B36; }
+  .offer-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px solid var(--line); }
+  .offer-row:first-child { border-top:none; }
+  .avatar { width:34px; height:34px; border-radius:50%; background:var(--accent-soft); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; flex-shrink:0; }
+  .offer-info { flex:1; min-width:0; }
+  .offer-info .name { font-size:13px; font-weight:600; }
+  .offer-info .meta { font-size:11px; color:var(--ink-soft); }
+  .offer-price { font-size:15px; font-weight:700; color:var(--accent); white-space:nowrap; }
+  .verified-tag { color:var(--accent); font-size:12px; margin-left:4px; }
+  .empty { text-align:center; padding:36px 16px; color:var(--ink-soft); font-size:13px; }
+  .empty i { font-size:28px; display:block; margin-bottom:10px; color:var(--line); }
+  nav.tabbar { position:sticky; bottom:0; background:var(--surface); border-top:1px solid var(--line); display:flex; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); }
+  nav.tabbar button { flex:1; background:none; border:none; display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 0; color:var(--ink-soft); font-size:10px; cursor:pointer; }
+  nav.tabbar button i { font-size:20px; }
+  nav.tabbar button.active { color:var(--accent); }
+  .modal-overlay { position:fixed; inset:0; background:rgba(28,43,45,0.45); z-index:20; display:flex; align-items:flex-end; justify-content:center; }
+  .modal-sheet { background:var(--bg); width:100%; max-width:420px; border-radius:18px 18px 0 0; padding:18px; max-height:86vh; overflow-y:auto; }
+  .modal-sheet h3 { margin:0 0 14px; font-size:16px; }
+  .close-x { float:right; cursor:pointer; color:var(--ink-soft); font-size:18px; }
+  .chat-bubble { max-width:78%; padding:8px 12px; border-radius:12px; font-size:13px; margin-bottom:8px; }
+  .chat-bubble.me { background:var(--accent); color:white; margin-left:auto; border-bottom-right-radius:3px; }
+  .chat-bubble.them { background:var(--surface); border:1px solid var(--line); border-bottom-left-radius:3px; }
+  .toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:var(--ink); color:white; padding:10px 16px; border-radius:10px; font-size:13px; z-index:30; max-width:360px; text-align:center; }
+  .lock-note { display:flex; gap:8px; background:var(--warn-soft); color:var(--warn); border-radius:9px; padding:9px 11px; font-size:12px; margin:10px 0; }
+  .banner { background:var(--accent-soft); color:var(--accent); font-size:11px; text-align:center; padding:6px; }
+</style>
+</head>
+<body>
+<div class="banner"><i class="ti ti-info-circle" style="vertical-align:-2px;"></i> Демо-версия — данные хранятся только в этой вкладке и сбрасываются при перезагрузке</div>
+<div id="app"></div>
+
+<script>
+// ---------- Данные хранятся только в памяти браузера (без сервера) ----------
+
+const I18N = {
+  ru: {
+    appName:"EuroRide", passenger:"Пассажир", driver:"Водитель", newTrip:"Новая поездка",
+    from:"Откуда", to:"Куда", date:"Дата", seats:"Мест", create:"Создать поездку",
+    myTrips:"Мои поездки", openTrips:"Доступные поездки", noTrips:"Поездок пока нет",
+    noOpenTrips:"Сейчас нет открытых заявок", offers:"Предложения",
+    noOffers:"Откликов пока нет, водители скоро откликнутся", select:"Выбрать",
+    price:"Цена, €", message:"Сообщение (необязательно)", sendOffer:"Откликнуться",
+    chat:"Чат", typeMessage:"Сообщение...", send:"Отправить",
+    completeTrip:"Завершить и оплатить", leaveReview:"Оставить отзыв", rating:"Оценка",
+    comment:"Комментарий", submitReview:"Отправить отзыв", status_open:"Открыта",
+    status_matched:"Выбран водитель", status_completed:"Завершена", verified:"Проверен",
+    rides:"поездок", holdNote:"Сумма блокируется на карте и спишется после завершения поездки",
+    paymentHeld:"Оплата заблокирована", paymentDone:"Оплата списана",
+    tabHome:"Главная", tabProfile:"Профиль", profileTitle:"Профиль",
+    feeNote:"Сервисный сбор платформы 12% уже учтён в расчёте водителя",
+  },
+  en: {
+    appName:"EuroRide", passenger:"Passenger", driver:"Driver", newTrip:"New trip",
+    from:"From", to:"To", date:"Date", seats:"Seats", create:"Create trip",
+    myTrips:"My trips", openTrips:"Open trip requests", noTrips:"No trips yet",
+    noOpenTrips:"No open requests right now", offers:"Offers",
+    noOffers:"No offers yet, drivers will respond soon", select:"Select",
+    price:"Price, €", message:"Message (optional)", sendOffer:"Send offer",
+    chat:"Chat", typeMessage:"Message...", send:"Send",
+    completeTrip:"Complete and pay", leaveReview:"Leave a review", rating:"Rating",
+    comment:"Comment", submitReview:"Submit review", status_open:"Open",
+    status_matched:"Driver selected", status_completed:"Completed", verified:"Verified",
+    rides:"rides", holdNote:"The amount is held on the card and captured after the trip is completed",
+    paymentHeld:"Payment held", paymentDone:"Payment captured",
+    tabHome:"Home", tabProfile:"Profile", profileTitle:"Profile",
+    feeNote:"12% platform fee is already factored into the driver's payout",
+  },
+};
+
+let uid = 0;
+function nid(prefix) { return prefix + (++uid) + "_" + Math.random().toString(36).slice(2,7); }
+
+let state = {
+  lang: "ru",
+  role: "passenger",
+  tab: "home",
+  modal: null,
+  toastMsg: null,
+  users: {
+    passenger: { id:"pass1", name:"Anna", role:"passenger", rating:5, rides_count:2, verified:false },
+    driver: { id:"drv1", name:"Jonas", role:"driver", rating:4.9, rides_count:312, verified:true, car_make:"Volkswagen", car_model:"Passat" },
+  },
+  trips: [
+    { id:"trip1", passenger_id:"pass1", origin:"Tallinn", destination:"Berlin", date:"2026-07-10", seats:2,
+      status:"open", selected_offer_id:null,
+      offers: [
+        { id:"off1", trip_id:"trip1", driver_id:"drv1", driver_name:"Jonas", driver_rating:4.9, driver_verified:true, car_make:"Volkswagen", car_model:"Passat", price_cents:3800, status:"pending" },
+        { id:"off2", trip_id:"trip1", driver_id:"drv2", driver_name:"Marek", driver_rating:4.7, driver_verified:true, car_make:"Skoda", car_model:"Octavia", price_cents:3400, status:"pending" },
+      ],
+      messages: [],
+    },
+  ],
+};
+
+function t(key){ return I18N[state.lang][key] || key; }
+function user(){ return state.users[state.role]; }
+
+function showToast(msg){ state.toastMsg = msg; render(); setTimeout(()=>{ state.toastMsg=null; render(); }, 2200); }
+
+function switchRole(role){ state.role = role; state.modal = null; render(); }
+function setLang(lang){ state.lang = lang; render(); }
+
+function myTrips(){
+  if(state.role === "passenger") return state.trips.filter(tr => tr.passenger_id === user().id);
+  return state.trips.filter(tr => tr.status === "open");
+}
+
+function createTrip(e){
+  e.preventDefault();
+  const f = e.target;
+  state.trips.unshift({
+    id: nid("trip"), passenger_id: user().id, origin:f.origin.value, destination:f.destination.value,
+    date:f.date.value, seats:Number(f.seats.value)||1, status:"open", selected_offer_id:null, offers:[], messages:[],
+  });
+  showToast(state.lang==="ru" ? "Поездка создана" : "Trip created");
+  render();
+}
+
+function openTrip(id){
+  state.modal = { type:"trip", tripId:id };
+  render();
+}
+function closeModal(){ state.modal = null; render(); }
+
+function sendOffer(e, tripId){
+  e.preventDefault();
+  const f = e.target;
+  const trip = state.trips.find(tr => tr.id === tripId);
+  const d = user();
+  trip.offers.push({
+    id: nid("off"), trip_id:tripId, driver_id:d.id, driver_name:d.name, driver_rating:d.rating,
+    driver_verified:d.verified, car_make:d.car_make, car_model:d.car_model,
+    price_cents: Math.round(Number(f.price.value)*100), status:"pending",
+  });
+  showToast(state.lang==="ru" ? "Отклик отправлен" : "Offer sent");
+  state.modal = null;
+  render();
+}
+
+function selectOffer(tripId, offerId){
+  const trip = state.trips.find(tr => tr.id === tripId);
+  const offer = trip.offers.find(o => o.id === offerId);
+  trip.status = "matched";
+  trip.selected_offer_id = offerId;
+  offer.status = "accepted";
+  trip.offers.forEach(o => { if(o.id !== offerId) o.status = "rejected"; });
+  showToast(t("paymentHeld") + ": " + (offer.price_cents/100).toFixed(2) + " €");
+  state.modal = { type:"trip", tripId };
+  render();
+}
+
+function completeTrip(tripId){
+  const trip = state.trips.find(tr => tr.id === tripId);
+  trip.status = "completed";
+  showToast(t("paymentDone"));
+  state.modal = { type:"trip", tripId };
+  render();
+}
+
+function openChat(tripId){
+  state.modal = { type:"chat", tripId };
+  render();
+}
+
+function sendMessage(e, tripId){
+  e.preventDefault();
+  const f = e.target;
+  const body = f.body.value.trim();
+  if(!body) return;
+  const trip = state.trips.find(tr => tr.id === tripId);
+  trip.messages.push({ sender_id: user().id, body });
+  f.body.value = "";
+  state.modal.messages = trip.messages;
+  render();
+}
+
+function submitReview(e, tripId){
+  e.preventDefault();
+  showToast(state.lang==="ru" ? "Спасибо за отзыв!" : "Thanks for the review!");
+  state.modal = null;
+  render();
+}
+
+function statusBadge(status){ return `<span class="badge ${status}">${t("status_"+status)}</span>`; }
+function emptyState(icon, text){ return `<div class="empty"><i class="ti ${icon}"></i>${text}</div>`; }
+
+function tripCard(trip){
+  return `
+    <div class="card" onclick="openTrip('${trip.id}')" style="cursor:pointer;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div class="trip-route">${trip.origin} <i class="ti ti-arrow-right"></i> ${trip.destination}</div>
+        ${statusBadge(trip.status)}
+      </div>
+      <div class="trip-meta"><i class="ti ti-calendar" style="font-size:12px;vertical-align:-1px;"></i> ${trip.date} · ${trip.seats} ${state.lang==='ru'?'мест':'seats'}</div>
+    </div>
+  `;
+}
+
+function render(){
+  const app = document.getElementById("app");
+  app.innerHTML = `
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-name"><i class="ti ti-route-2"></i> ${t("appName")}</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="demo-tag">DEMO</span>
+          <select class="lang" onchange="setLang(this.value)">
+            <option value="ru" ${state.lang==="ru"?"selected":""}>RU</option>
+            <option value="en" ${state.lang==="en"?"selected":""}>EN</option>
+          </select>
+        </div>
+      </div>
+      <div class="role-switch">
+        <button class="${state.role==="passenger"?"active":""}" onclick="switchRole('passenger')"><i class="ti ti-user"></i> ${t("passenger")}</button>
+        <button class="${state.role==="driver"?"active":""}" onclick="switchRole('driver')"><i class="ti ti-steering-wheel"></i> ${t("driver")}</button>
+      </div>
+    </header>
+    <main>${state.tab === "home" ? renderHome() : renderProfile()}</main>
+    <nav class="tabbar">
+      <button class="${state.tab==='home'?'active':''}" onclick="state.tab='home';render()"><i class="ti ti-home"></i>${t("tabHome")}</button>
+      <button class="${state.tab==='profile'?'active':''}" onclick="state.tab='profile';render()"><i class="ti ti-user-circle"></i>${t("tabProfile")}</button>
+    </nav>
+    ${renderModal()}
+    ${state.toastMsg ? `<div class="toast">${state.toastMsg}</div>` : ""}
+  `;
+}
+
+function renderHome(){
+  const trips = myTrips();
+  if(state.role === "passenger"){
+    return `
+      <div class="section-title">${t("newTrip")}</div>
+      <form class="card" onsubmit="createTrip(event)">
+        <div class="row2">
+          <div class="field"><label>${t("from")}</label><input name="origin" placeholder="Tallinn" required /></div>
+          <div class="field"><label>${t("to")}</label><input name="destination" placeholder="Berlin" required /></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>${t("date")}</label><input name="date" type="date" required /></div>
+          <div class="field"><label>${t("seats")}</label><input name="seats" type="number" min="1" max="8" value="1" /></div>
+        </div>
+        <button class="primary" type="submit"><i class="ti ti-send-2"></i> ${t("create")}</button>
+      </form>
+      <div class="section-title">${t("myTrips")}</div>
+      ${trips.length === 0 ? emptyState("ti-map-route", t("noTrips")) : trips.map(tripCard).join("")}
+    `;
+  } else {
+    return `
+      <div class="section-title">${t("openTrips")}</div>
+      ${trips.length === 0 ? emptyState("ti-steering-wheel", t("noOpenTrips")) : trips.map(tripCard).join("")}
+    `;
+  }
+}
+
+function renderProfile(){
+  const u = user();
+  return `
+    <div class="card" style="text-align:center;">
+      <div class="avatar" style="width:56px;height:56px;font-size:20px;margin:0 auto 10px;">${u.name[0]}</div>
+      <div style="font-size:16px;font-weight:700;">${u.name}</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:2px;">${t(u.role)} ${u.verified ? `<span class="verified-tag"><i class="ti ti-rosette-discount-check-filled"></i> ${t("verified")}</span>` : ""}</div>
+      <div style="margin-top:10px;font-size:13px;"><i class="ti ti-star-filled" style="color:var(--warn);font-size:13px;"></i> ${u.rating} · ${u.rides_count} ${t("rides")}</div>
+      ${u.role === "driver" ? `<div style="margin-top:8px;font-size:12px;color:var(--ink-soft);">${u.car_make} ${u.car_model}</div>` : ""}
+    </div>
+    <div class="section-title">${t("feeNote")}</div>
+  `;
+}
+
+function renderModal(){
+  if(!state.modal) return "";
+  if(state.modal.type === "trip") return renderTripModal();
+  if(state.modal.type === "offerForm") return renderOfferFormModal();
+  if(state.modal.type === "chat") return renderChatModal();
+  if(state.modal.type === "review") return renderReviewModal();
+  return "";
+}
+
+function renderTripModal(){
+  const trip = state.trips.find(tr => tr.id === state.modal.tripId);
+  const isPassenger = state.role === "passenger";
+  const selected = trip.selected_offer_id ? trip.offers.find(o => o.id === trip.selected_offer_id) : null;
+
+  let offersHtml;
+  if(isPassenger){
+    offersHtml = trip.offers.length === 0 ? emptyState("ti-message-2", t("noOffers")) :
+      trip.offers.slice().sort((a,b)=>a.price_cents-b.price_cents).map(o => `
+        <div class="offer-row">
+          <div class="avatar">${o.driver_name[0]}</div>
+          <div class="offer-info">
+            <div class="name">${o.driver_name} ${o.driver_verified ? `<i class="ti ti-rosette-discount-check-filled verified-tag"></i>` : ""}</div>
+            <div class="meta"><i class="ti ti-star-filled" style="font-size:10px;"></i> ${o.driver_rating} · ${o.car_make||""} ${o.car_model||""}</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="offer-price">${(o.price_cents/100).toFixed(2)} €</div>
+            ${trip.status === "open"
+              ? `<button class="ghost" style="padding:5px 10px;width:auto;font-size:12px;margin-top:4px;" onclick="selectOffer('${trip.id}','${o.id}')">${t("select")}</button>`
+              : (o.status === "accepted" ? `<span class="badge matched">${t("status_matched")}</span>` : "")}
+          </div>
+        </div>
+      `).join("");
+  } else {
+    offersHtml = `<button class="primary" onclick='state.modal={type:"offerForm", tripId:"${trip.id}"};render()'><i class="ti ti-currency-euro"></i> ${t("sendOffer")}</button>`;
+  }
+
+  return `
+    <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
+      <div class="modal-sheet">
+        <span class="close-x" onclick="closeModal()"><i class="ti ti-x"></i></span>
+        <h3>${trip.origin} <i class="ti ti-arrow-right" style="font-size:14px;"></i> ${trip.destination}</h3>
+        <div class="trip-meta" style="margin-bottom:10px;">${trip.date} · ${trip.seats} ${state.lang==='ru'?'мест':'seats'} ${statusBadge(trip.status)}</div>
+        ${selected ? `<div class="lock-note"><i class="ti ti-lock"></i> ${trip.status==='completed' ? t("paymentDone") : t("holdNote")}</div>` : ""}
+        <div class="section-title" style="margin-top:6px;">${t("offers")}</div>
+        ${offersHtml}
+        ${trip.status === "matched" ? `
+          <button class="ghost" style="margin-top:14px;" onclick="openChat('${trip.id}')"><i class="ti ti-message-circle"></i> ${t("chat")}</button>
+          ${isPassenger ? `<button class="primary" style="margin-top:8px;" onclick="completeTrip('${trip.id}')"><i class="ti ti-check"></i> ${t("completeTrip")}</button>` : ""}
+        ` : ""}
+        ${trip.status === "completed" && isPassenger ? `
+          <button class="primary" style="margin-top:14px;" onclick='state.modal={type:"review", tripId:"${trip.id}"};render()'><i class="ti ti-star"></i> ${t("leaveReview")}</button>
+        ` : ""}
+      </div>
+    </div>
+  `;
+}
+
+function renderOfferFormModal(){
+  return `
+    <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
+      <div class="modal-sheet">
+        <span class="close-x" onclick="closeModal()"><i class="ti ti-x"></i></span>
+        <h3>${t("sendOffer")}</h3>
+        <form onsubmit="sendOffer(event, '${state.modal.tripId}')">
+          <div class="field"><label>${t("price")}</label><input name="price" type="number" min="1" step="0.5" required /></div>
+          <div class="field"><label>${t("message")}</label><input name="message" placeholder="${state.lang==='ru'?'Еду в среду утром':'Leaving Wednesday morning'}" /></div>
+          <button class="primary" type="submit">${t("sendOffer")}</button>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+function renderChatModal(){
+  const trip = state.trips.find(tr => tr.id === state.modal.tripId);
+  return `
+    <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
+      <div class="modal-sheet">
+        <span class="close-x" onclick="closeModal()"><i class="ti ti-x"></i></span>
+        <h3>${t("chat")}</h3>
+        <div style="margin-bottom:12px;max-height:300px;overflow-y:auto;">
+          ${trip.messages.length === 0 ? emptyState("ti-message-2", "...") :
+            trip.messages.map(msg => `<div class="chat-bubble ${msg.sender_id===user().id?'me':'them'}">${msg.body}</div>`).join("")}
+        </div>
+        <form onsubmit="sendMessage(event, '${trip.id}')" style="display:flex;gap:8px;">
+          <input name="body" placeholder="${t("typeMessage")}" style="flex:1;padding:10px;border-radius:9px;border:1px solid var(--line);" />
+          <button class="primary" type="submit" style="width:auto;padding:0 16px;">${t("send")}</button>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+function renderReviewModal(){
+  return `
+    <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
+      <div class="modal-sheet">
+        <span class="close-x" onclick="closeModal()"><i class="ti ti-x"></i></span>
+        <h3>${t("leaveReview")}</h3>
+        <form onsubmit="submitReview(event, '${state.modal.tripId}')">
+          <div class="field">
+            <label>${t("rating")}</label>
+            <select name="rating">
+              <option value="5">5 ★★★★★</option>
+              <option value="4">4 ★★★★</option>
+              <option value="3">3 ★★★</option>
+              <option value="2">2 ★★</option>
+              <option value="1">1 ★</option>
+            </select>
+          </div>
+          <div class="field"><label>${t("comment")}</label><input name="comment" /></div>
+          <button class="primary" type="submit">${t("submitReview")}</button>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+render();
+</script>
+</body>
+</html>
